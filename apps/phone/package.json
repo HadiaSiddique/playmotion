@@ -1,0 +1,24 @@
+{
+  "name": "movewell-phone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PlayMotion phone camera page: on-device pose tracking, sends landmarks and rep events to the TV",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "test": "node --test test/detectors.test.js"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.14",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "vite": "^5.4.10"
+  }
+}

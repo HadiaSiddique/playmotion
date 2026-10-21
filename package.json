@@ -1,0 +1,32 @@
+{
+  "name": "movewell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PlayMotion: an AI health coach that turns every workout into a game on your TV.",
+  "license": "MIT",
+  "workspaces": [
+    "apps/tv",
+    "packages/shared-ui"
+  ],
+  "packageManager": "yarn@4.5.0",
+  "resolutions": {
+    "js-yaml": "^3.15.1",
+    "min-document": "^2.19.1",
+    "logkitty": "^0.7.1",
+    "node-fetch": "^2.6.7",
+    "ws": "^8.21.0"
+  },
+  "scripts": {
+    "test": "node --test infra/src/test/logic.test.mjs",
+    "ws:test": "node scripts/ws-pair-test.mjs",
+    "fake-tv": "node scripts/fake-tv.mjs",
+    "fake-phone": "node scripts/fake-phone.mjs",
+    "tv": "yarn workspace @movewell/tv start",
+    "tv:android": "yarn workspace @movewell/tv android",
+    "tv:web": "yarn workspace @movewell/tv web",
+    "tv:typecheck": "yarn workspace @movewell/tv typecheck"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

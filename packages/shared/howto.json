@@ -1,0 +1,137 @@
+{
+  "sit_to_stand": {
+    "steps": [
+      "Sit near the front of a sturdy chair, feet flat and hip-width apart.",
+      "Lean forward a little, then stand up tall. Use your hands on your knees if you need to.",
+      "Sit back down slowly and with control."
+    ],
+    "tip": "Put the chair against a wall so it can't slide.",
+    "camera": "Phone 2–3 metres away, so your hips and knees are in the picture."
+  },
+  "chair_stand_test": {
+    "steps": [
+      "Sit in the middle of the chair with your arms crossed over your chest.",
+      "When the timer starts, stand up fully, then sit back down.",
+      "Repeat as many times as you safely can in 30 seconds."
+    ],
+    "tip": "Stop if you feel dizzy or unsteady. Have someone nearby.",
+    "camera": "Phone 2–3 metres away, side-on or facing you, hips and knees in view."
+  },
+  "arm_raise": {
+    "steps": [
+      "Stand tall with your arms by your sides.",
+      "Slowly raise both arms in front of you and up over your head.",
+      "Lower them slowly. Breathe out as you lower."
+    ],
+    "tip": "Only lift as high as feels comfortable.",
+    "camera": "Your shoulders and both hands in the picture."
+  },
+  "seated_arm_raise": {
+    "steps": [
+      "Sit tall near the front of your chair, feet flat on the floor.",
+      "Slowly raise both arms in front of you and up over your head.",
+      "Lower them slowly. Breathe out as you lower."
+    ],
+    "tip": "Keep your back supported if you need to.",
+    "camera": "Your head, shoulders and both hands in the picture. Your legs don't need to show."
+  },
+  "squats": {
+    "steps": [
+      "Stand with feet shoulder-width apart, toes slightly out.",
+      "Push your hips back and bend your knees as if sitting into a chair.",
+      "Push through your heels to stand back up."
+    ],
+    "tip": "Keep your knees in line with your toes.",
+    "camera": "Your whole body in the picture."
+  },
+  "standing_march": {
+    "steps": [
+      "Stand tall next to a chair or wall for support.",
+      "Lift one knee towards hip height, then lower it.",
+      "Swap legs and keep a steady rhythm."
+    ],
+    "tip": "Hold on to the chair if you feel wobbly.",
+    "camera": "Your whole body in the picture."
+  },
+  "balance_hold": {
+    "steps": [
+      "Stand next to a chair and hold it lightly.",
+      "Lift one foot just off the floor.",
+      "Hold still and breathe. Swap feet when the time is up."
+    ],
+    "tip": "Grip the chair again whenever you need to.",
+    "camera": "Your whole body in the picture."
+  },
+  "punches": {
+    "steps": [
+      "Stand with soft knees and your fists by your chin.",
+      "Punch one arm forward, then pull it back.",
+      "Swap arms. Keep your core tight."
+    ],
+    "tip": "Don't lock your elbows at full stretch.",
+    "camera": "Your shoulders and both hands in the picture."
+  },
+  "jumping_jacks": {
+    "steps": [
+      "Stand with feet together and arms by your sides.",
+      "Jump your feet apart as your arms go up overhead.",
+      "Jump back to the start. Step instead of jumping for a gentler version."
+    ],
+    "tip": "Land softly on the balls of your feet.",
+    "camera": "Your whole body in the picture."
+  },
+  "seated_tall_hold": {
+    "steps": [
+      "Sit near the front of your chair, feet flat.",
+      "Lift your chest, relax your shoulders and look ahead.",
+      "Stay tall and still, breathing slowly."
+    ],
+    "tip": "Lean back to rest whenever you need to.",
+    "camera": "Your head and shoulders in the picture."
+  },
+  "frog_jump": {
+    "steps": [
+      "Crouch down low like a frog, hands near the floor.",
+      "Spring up with a small hop.",
+      "Land softly on bent knees, then crouch again."
+    ],
+    "tip": "Small, soft hops. No big jumps.",
+    "camera": "Your whole body in the picture."
+  },
+  "flamingo_balance": {
+    "steps": [
+      "Stand tall like a flamingo.",
+      "Lift one foot and tuck it next to your other knee.",
+      "Stay still and count. Swap legs if you wobble."
+    ],
+    "tip": "Arms out wide like wings help you balance.",
+    "camera": "Your whole body in the picture."
+  },
+  "bear_steps": {
+    "steps": [
+      "Stand tall with your paws (hands) up.",
+      "Lift one knee high and stomp it down.",
+      "Now the other knee. Big bear stomps!"
+    ],
+    "tip": "Stomp gently: bears are strong, not loud.",
+    "camera": "Your hips and knees in the picture."
+  },
+  "crab_walk": {
+    "steps": [
+      "Bend your knees a little and hold your claws (hands) up.",
+      "Take a big step to the side.",
+      "Bring your feet together, then step again."
+    ],
+    "tip": "Make sure there is space around you.",
+    "camera": "Your whole body in the picture, with room to move sideways."
+  },
+  "breathing": {
+    "steps": [
+      "Sit or stand comfortably and relax your shoulders.",
+      "Breathe in slowly as your arms float up.",
+      "Breathe out slowly as your arms float down."
+    ],
+    "tip": "Go at your own pace. There is no wrong way.",
+    "camera": "Your shoulders and both hands in the picture."
+  }
+}

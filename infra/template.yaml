@@ -1,0 +1,347 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  PlayMotion backend - WebSocket pairing/relay, HTTP API, DynamoDB, Bedrock, Polly,
+  EventBridge Scheduler + SNS reminders/family alerts, S3 + CloudFront for the phone web app.
+
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+  BedrockModelIds:
+    Type: String
+    Description: Comma-separated Bedrock model / inference-profile IDs, tried in order. Run scripts/check-bedrock.ps1 to find what your account can invoke.
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0,us.amazon.nova-lite-v1:0
+  BedrockVisionModelIds:
+    Type: String
+    Description: Comma-separated image-capable model IDs for meal photo tips, tried in order.
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0,us.amazon.nova-lite-v1:0
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    CodeUri: src/
+    MemorySize: 512
+    Timeout: 10
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref Table
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+
+Resources:
+  # ---------------------------------------------------------------- data
+  Table:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gsi1pk, AttributeType: S }
+        - { AttributeName: gsi1sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - { AttributeName: gsi1pk, KeyType: HASH }
+            - { AttributeName: gsi1sk, KeyType: RANGE }
+          Projection: { ProjectionType: KEYS_ONLY }
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  FamilyTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: PlayMotion
+
+  # ---------------------------------------------------------------- phone web app hosting (+ Polly audio cache under tts/)
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-tts-cache
+            Status: Enabled
+            Prefix: tts/
+            ExpirationInDays: 60
+
+  WebOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-web-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: PlayMotion phone web app
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: web
+            DomainName: !GetAtt WebBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt WebOriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: web
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        CustomErrorResponses: # single-page app routing
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0 }
+          - { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0 }
+
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub ${WebBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  # ---------------------------------------------------------------- WebSocket API: pairing + real-time relay
+  WsApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${AWS::StackName}-ws
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  WsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsFunction.Arn}/invocations
+
+  WsConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $connect
+      Target: !Sub integrations/${WsIntegration}
+
+  WsDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $disconnect
+      Target: !Sub integrations/${WsIntegration}
+
+  WsDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: $default
+      Target: !Sub integrations/${WsIntegration}
+
+  WsDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn: [WsConnectRoute, WsDisconnectRoute, WsDefaultRoute]
+    Properties:
+      ApiId: !Ref WsApi
+
+  WsStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WsApi
+      StageName: !Ref StageName
+      DeploymentId: !Ref WsDeployment
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 400
+        ThrottlingRateLimit: 200
+
+  WsInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*
+
+  WsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ws/handler.handler
+      Description: PlayMotion TV/phone pairing and real-time relay
+      MemorySize: 1024
+      Environment:
+        Variables:
+          PHONE_APP_URL: !Sub https://${Distribution.DomainName}
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/${StageName}/POST/@connections/*
+
+  # ---------------------------------------------------------------- HTTP API: onboarding, plans, check-ins, reports, meals, family
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowMethods: [GET, POST, DELETE, OPTIONS]
+        AllowHeaders: [content-type]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 25
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api/handler.handler
+      Description: PlayMotion HTTP API
+      MemorySize: 1024
+      Timeout: 29 # HTTP API integrations time out at 30 s
+      Environment:
+        Variables:
+          BEDROCK_MODEL_IDS: !Ref BedrockModelIds
+          BEDROCK_VISION_MODEL_IDS: !Ref BedrockVisionModelIds
+          ASSET_BUCKET: !Ref WebBucket
+          ASSET_BASE_URL: !Sub https://${Distribution.DomainName}
+          FAMILY_TOPIC_ARN: !Ref FamilyTopic
+          SCHEDULE_GROUP: !Ref UserScheduleGroup
+          SCHEDULER_ROLE_ARN: !GetAtt SchedulerInvokeRole.Arn
+          JOBS_FUNCTION_ARN: !GetAtt JobsFunction.Arn
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - Statement:
+            - Sid: Bedrock
+              Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource:
+                - arn:aws:bedrock:*::foundation-model/*
+                - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*
+            - Sid: Polly
+              Effect: Allow
+              Action: polly:SynthesizeSpeech
+              Resource: '*'
+            - Sid: TtsCache
+              Effect: Allow
+              Action: [s3:GetObject, s3:PutObject]
+              Resource: !Sub ${WebBucket.Arn}/tts/*
+            - Sid: TtsCacheList # lets HeadObject return 404 instead of 403
+              Effect: Allow
+              Action: s3:ListBucket
+              Resource: !GetAtt WebBucket.Arn
+            - Sid: FamilyAlerts
+              Effect: Allow
+              Action: [sns:Publish, sns:Subscribe, sns:Unsubscribe]
+              Resource: !Ref FamilyTopic
+            - Sid: UserSchedules
+              Effect: Allow
+              Action: [scheduler:CreateSchedule, scheduler:UpdateSchedule, scheduler:DeleteSchedule, scheduler:GetSchedule]
+              Resource: !Sub arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/${UserScheduleGroup}/*
+            - Sid: PassSchedulerRole
+              Effect: Allow
+              Action: iam:PassRole
+              Resource: !GetAtt SchedulerInvokeRole.Arn
+      Events:
+        Health: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /health, Method: GET } }
+        Onboard: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /onboard, Method: POST } }
+        Plan: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /plan, Method: GET } }
+        Checkin: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /checkin, Method: POST } }
+        SessionComplete: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /session/complete, Method: POST } }
+        Report: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /report, Method: GET } }
+        ReportShare: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /report/share, Method: POST } }
+        Meal: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /meal, Method: POST } }
+        FamilyList: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /family, Method: GET } }
+        FamilyAdd: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /family, Method: POST } }
+        Tts: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /tts, Method: POST } }
+        VoicePack: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /voice/pack, Method: GET } }
+        Story: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /story, Method: POST } }
+        KidsVerifyPin: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /kids/verify-pin, Method: POST } }
+
+  # ---------------------------------------------------------------- reminders + family alerts
+  UserScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: !Sub ${AWS::StackName}-users
+
+  SchedulerInvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: invoke-jobs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt JobsFunction.Arn
+
+  JobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs/handler.handler
+      Description: PlayMotion session/water reminders and 3-day inactivity family alerts
+      Timeout: 60
+      Environment:
+        Variables:
+          FAMILY_TOPIC_ARN: !Ref FamilyTopic
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref Table }
+        - SNSPublishMessagePolicy: { TopicName: !GetAtt FamilyTopic.TopicName }
+      Events:
+        DailyInactivityScan:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 16 * * ? *)
+            ScheduleExpressionTimezone: UTC
+            Input: '{"type":"inactivity-scan"}'
+
+Outputs:
+  HttpApiUrl:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  WebSocketUrl:
+    Value: !Sub wss://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  PhoneAppUrl:
+    Value: !Sub https://${Distribution.DomainName}
+  WebBucketName:
+    Value: !Ref WebBucket
+  DistributionId:
+    Value: !Ref Distribution
+  TableName:
+    Value: !Ref Table
+  FamilyTopicArn:
+    Value: !Ref FamilyTopic
