@@ -128,6 +128,60 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
 
+  # ---------------------------------------------------------------- TV web app hosting (the same TV app, built for browsers)
+  # Lets judges and family try PlayMotion from a link: the browser is the TV, the laptop webcam or a phone is the camera.
+  TvBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  TvDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: PlayMotion TV web app
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: tv
+            DomainName: !GetAtt TvBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt WebOriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: tv
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        CustomErrorResponses: # single-page app routing: /report, /play/... all load index.html
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0 }
+          - { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0 }
+
+  TvBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TvBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub ${TvBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${TvDistribution}
+
   # ---------------------------------------------------------------- WebSocket API: pairing + real-time relay
   WsApi:
     Type: AWS::ApiGatewayV2::Api
@@ -341,6 +395,12 @@ Outputs:
     Value: !Ref WebBucket
   DistributionId:
     Value: !Ref Distribution
+  TvAppUrl:
+    Value: !Sub https://${TvDistribution.DomainName}
+  TvBucketName:
+    Value: !Ref TvBucket
+  TvDistributionId:
+    Value: !Ref TvDistribution
   TableName:
     Value: !Ref Table
   FamilyTopicArn:

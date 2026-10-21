@@ -33,4 +33,5 @@ Write-Host "`nPlayMotion backend is live:" -ForegroundColor Green
 Write-Host "  HTTP API   $($o.HttpApiUrl)"
 Write-Host "  WebSocket  $($o.WebSocketUrl)"
 Write-Host "  Phone app  $($o.PhoneAppUrl)"
+if ($o.TvAppUrl) { Write-Host "  TV app     $($o.TvAppUrl)" }
 Write-Host "Wrote apps/phone/.env.local, apps/tv/.env.local and infra/.stack-outputs.json"
