@@ -142,5 +142,5 @@ Amazon Bedrock · Amazon Polly · AWS Lambda · Amazon API Gateway (WebSocket + 
 ## Links
 - Try PlayMotion (browser = TV; phone or laptop webcam = camera): https://dnt0we121kyft.cloudfront.net
 - Phone camera page (opened by the QR code): https://dtpn7hdiphoh4.cloudfront.net
-- Code: https://github.com/HadiaSiddique/playmotion (MIT licence) [verify: repository created and pushed]
+- Code: https://github.com/HadiaSiddique/playmotion (MIT licence)
 - Demo video: [verify: YouTube/Vimeo link]
