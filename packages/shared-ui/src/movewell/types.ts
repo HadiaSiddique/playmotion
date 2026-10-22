@@ -62,6 +62,7 @@ export interface PlanResponse {
   plan: Plan;
   today: Today;
   checkedInToday: boolean;
+  todayCheckin?: { mood: number | null; energy: number | null } | null;
   progress: Progress;
   notices: { kind: string; text: string; at: string }[];
 }

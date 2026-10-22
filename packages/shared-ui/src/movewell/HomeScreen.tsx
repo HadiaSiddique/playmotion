@@ -66,12 +66,18 @@ export default function HomeScreen() {
   const xpNext = 50 * level ** 2;
   const xpPct = Math.min(100, Math.round(((progress.xp - xpThis) / Math.max(1, xpNext - xpThis)) * 100));
 
+  // Today's check-in answers, so a later workout still shows the mood-lift graph at the end.
+  const moodBefore = {
+    moodBefore: data.todayCheckin?.mood ?? undefined,
+    energyBefore: data.todayCheckin?.energy ?? undefined,
+  };
+
   /** game = a game picked from a mode; undefined = today's planned session (the check-in may change it). */
   const startGame = (game?: string) => {
     if (!checkedInToday) navigation.navigate('Checkin', game ? { game: playableGame(game) } : undefined);
     else {
       const playGame = playableGame(game ?? today.game);
-      navigation.navigate('Session', { game: playGame, moves: movesFor(playGame, plan, today, isKid) });
+      navigation.navigate('Session', { game: playGame, moves: movesFor(playGame, plan, today, isKid), ...moodBefore });
     }
   };
 
@@ -79,7 +85,7 @@ export default function HomeScreen() {
   const startChoice = (choice: WorkoutChoice) => {
     setPicking(false);
     if (!checkedInToday) navigation.navigate('Checkin', choice);
-    else navigation.navigate('Session', choice);
+    else navigation.navigate('Session', { ...choice, ...moodBefore });
   };
 
   const startOver = async () => {

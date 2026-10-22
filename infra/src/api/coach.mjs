@@ -116,6 +116,8 @@ export async function getPlan(event) {
     plan: publicView(plan),
     today: checkinToday?.today ?? adaptToday(plan, null, date),
     checkedInToday: Boolean(checkinToday),
+    // So a workout started later today still gets "mood before" for the mood-lift graph.
+    todayCheckin: checkinToday ? { mood: checkinToday.mood ?? null, energy: checkinToday.energy ?? null } : null,
     progress: publicView({ ...initialProgress(), ...progress }),
     notices: notices.filter((n) => !n.ttl || n.ttl > nowSec).map((n) => ({ kind: n.kind, text: n.text, at: n.at })),
     disclaimer: DISCLAIMER,

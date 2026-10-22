@@ -140,6 +140,7 @@ Amazon Bedrock · Amazon Polly · AWS Lambda · Amazon API Gateway (WebSocket + 
 - PLOS ONE (2024): exergames improve children's balance and motor skills.
 
 ## Links
-- Code: [verify: public GitHub repository URL] (MIT licence)
+- Try PlayMotion (browser = TV; phone or laptop webcam = camera): https://dnt0we121kyft.cloudfront.net
+- Phone camera page (opened by the QR code): https://dtpn7hdiphoh4.cloudfront.net
+- Code: https://github.com/HadiaSiddique/playmotion (MIT licence) [verify: repository created and pushed]
 - Demo video: [verify: YouTube/Vimeo link]
-- Try the camera page: https://dtpn7hdiphoh4.cloudfront.net

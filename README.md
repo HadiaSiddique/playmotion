@@ -3,6 +3,10 @@
 **An AI health coach that turns every workout into a game on your TV.**
 Your phone becomes the camera, your Fire TV becomes the coach and the game screen. No install on the phone: scan a QR code and move.
 
+**Try it now:** open **https://dnt0we121kyft.cloudfront.net** in Chrome (the browser plays the TV), then either scan the QR code with your phone or click **💻 Use this laptop's camera**. Stand 2–3 m back so your whole body is in view.
+
+![PlayMotion home screen](docs/screenshots/01-home.png)
+
 | Mode | For | Games |
 |---|---|---|
 | **Steady** | Balance and fall prevention for older adults | Balance Bridge, Garden Grow, Pop the Bubbles, 30-second chair-stand test |
